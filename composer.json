@@ -1,0 +1,59 @@
+{
+    "name": "justinholtweb/craft-speculatr",
+    "description": "Speculative loading for Craft — prefetch and prerender the page a reader is about to open, with the pages nobody should ever speculate on excluded before you have to think about it.",
+    "version": "5.0.0",
+    "type": "craft-plugin",
+    "keywords": [
+        "craftcms",
+        "craft-plugin",
+        "speculation-rules",
+        "prerender",
+        "prefetch",
+        "performance",
+        "core-web-vitals",
+        "lcp",
+        "instant-navigation"
+    ],
+    "license": "proprietary",
+    "authors": [
+        {
+            "name": "Justin Holt",
+            "homepage": "https://justinholt.com"
+        }
+    ],
+    "support": {
+        "email": "justin@justinholt.com"
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true,
+    "require": {
+        "php": "^8.2",
+        "ext-json": "*",
+        "craftcms/cms": "^5.3.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "justinholtweb\\speculatr\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "justinholtweb\\speculatr\\tests\\": "tests/"
+        }
+    },
+    "config": {
+        "allow-plugins": {
+            "craftcms/plugin-installer": true,
+            "yiisoft/yii2-composer": true
+        }
+    },
+    "extra": {
+        "name": "Speculatr",
+        "handle": "speculatr",
+        "developer": "Justin Holt",
+        "developerUrl": "https://justinholt.com",
+        "documentationUrl": "https://github.com/justinholtweb/craft-speculatr/blob/main/README.md",
+        "changelogUrl": "https://raw.githubusercontent.com/justinholtweb/craft-speculatr/main/CHANGELOG.md",
+        "class": "justinholtweb\\speculatr\\Plugin"
+    }
+}

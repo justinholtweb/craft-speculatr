@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none" stroke="#ffffff"
+     stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round">
+  <!--
+    Watermark: the mark drawn as line only.
+
+    The family trap is that a filled mark blown up to 1180px across a slide reads as a hard-edged
+    grey shape laid over the artwork rather than as the icon. Speculatr's mark is already mostly
+    line — three lozenges and a chevron — but filled at that size the lozenges still read as three
+    grey slugs, so they become outlines too. Strip the mass, keep the line.
+  -->
+  <rect x="10" y="45" width="15" height="10" rx="5"/>
+  <rect x="30" y="45" width="15" height="10" rx="5"/>
+  <rect x="50" y="45" width="15" height="10" rx="5"/>
+  <path d="M70 37 L83 50 L70 63"/>
+</svg>

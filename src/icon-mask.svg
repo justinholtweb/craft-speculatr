@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="Speculatr">
+  <!--
+    The road ahead: three dashes of a path already laid down, and a chevron that has not travelled
+    it yet. Speculation is the dashes.
+
+    The chevron is stroked rather than filled. A filled triangle's apex collapses to mud at 32px;
+    round caps and joins hold the shape all the way down. The dashes are elongated on purpose — at
+    a square-ish ratio the rounded ends meet and they read as three dots, not as a road.
+  -->
+  <!-- The path already laid down -->
+  <rect x="10" y="45" width="15" height="10" rx="5" fill="currentColor"/>
+  <rect x="30" y="45" width="15" height="10" rx="5" fill="currentColor"/>
+  <rect x="50" y="45" width="15" height="10" rx="5" fill="currentColor"/>
+
+  <!-- The part of it nobody has travelled yet -->
+  <path d="M70 37 L83 50 L70 63" fill="none" stroke="currentColor" stroke-width="10"
+        stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

@@ -1,0 +1,50 @@
+{#
+    Drop this in the harness's `templates/` and hit `/speculatr-demo`.
+
+    It exists to be looked at in a browser's devtools: the rules should be in the page, the
+    excluded links should be excluded, and `Sec-Purpose` should be visible on a speculated request.
+#}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Speculatr demo</title>
+</head>
+<body>
+    <h1>Speculatr demo</h1>
+
+    <p>Speculative request: <strong>{{ craft.speculatr.isSpeculative ? 'yes' : 'no' }}</strong>
+       (prefetch: {{ craft.speculatr.isPrefetch ? 'yes' : 'no' }},
+        prerender: {{ craft.speculatr.isPrerender ? 'yes' : 'no' }})</p>
+
+    <h2>Should be speculated</h2>
+    <ul>
+        <li><a href="/about">/about</a></li>
+        <li><a href="/blog/some-post">/blog/some-post</a></li>
+        <li><a href="/pricing?utm_source=newsletter">/pricing?utm_source=newsletter</a></li>
+    </ul>
+
+    <h2>Should never be speculated</h2>
+    <ul>
+        <li><a href="/logout">/logout</a> — Craft's logout path</li>
+        <li><a href="/admin/entries">/admin/entries</a> — the control panel</li>
+        <li><a href="/actions/users/save-user">/actions/users/save-user</a> — an action request</li>
+        <li><a href="/page?action=users/logout">?action=…</a> — an action by query parameter</li>
+        <li><a href="/page?token=abc123">?token=…</a> — a preview token</li>
+        <li><a href="/files/brochure.PDF">/files/brochure.PDF</a> — a file, in the wrong case</li>
+        <li><a href="/anything" class="no-speculation">.no-speculation</a></li>
+        <li><a href="/anything" rel="nofollow">rel="nofollow"</a></li>
+        <li><a href="/anything" download>download</a></li>
+        <li><a href="/anything" target="_blank">target="_blank"</a></li>
+        <li><a href="https://example.com/elsewhere">another origin</a></li>
+    </ul>
+
+    <h2>Added by this template</h2>
+    {% do craft.speculatr.prefetch('/contact') %}
+    {% do craft.speculatr.exclude('demo-only/*', 'Added by the demo template') %}
+    <p>A list rule for <code>/contact</code>, and an exclusion for <code>/demo-only/*</code>.</p>
+
+    <h2>The rules on this page</h2>
+    <pre>{{ craft.speculatr.json() }}</pre>
+</body>
+</html>

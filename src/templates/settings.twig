@@ -1,0 +1,278 @@
+{% import "_includes/forms.twig" as forms %}
+
+{#
+    Speculatr's settings.
+
+    Ordered the way the decision actually gets made: what to do, who to do it to, and what to
+    never do it to. The exclusions are last and longest because they are the part worth reading.
+#}
+
+{{ forms.lightswitchField({
+    label: 'Enabled'|t('speculatr'),
+    instructions: 'Off means no rules anywhere and no headers. Everything below stays as you left it.'|t('speculatr'),
+    id: 'enabled',
+    name: 'enabled',
+    on: settings.enabled,
+}) }}
+
+<hr>
+
+<h2>{{ 'What to do'|t('speculatr') }}</h2>
+
+{{ forms.selectField({
+    label: 'Mode'|t('speculatr'),
+    instructions: 'A **prefetch** downloads the page’s HTML and stops — a few kilobytes, no scripts run, nothing on the page fires. A **prerender** loads and runs the entire page in a hidden tab, so the navigation is genuinely instant and the cost is a whole page load that may never be used.\n\n**Both** prefetches at the eagerness below and prerenders one step behind it, so the expensive half is never spent on a link the pointer merely crossed.'|t('speculatr'),
+    id: 'mode',
+    name: 'mode',
+    value: settings.mode,
+    options: [
+        { value: 'prefetch', label: 'Prefetch'|t('speculatr') },
+        { value: 'prerender', label: 'Prerender'|t('speculatr') },
+        { value: 'both', label: 'Both — prefetch, then prerender on commitment'|t('speculatr') },
+    ],
+    errors: settings.getErrors('mode'),
+}) }}
+
+{{ forms.selectField({
+    label: 'Eagerness'|t('speculatr'),
+    instructions: 'How keen the browser should be. Chrome holds only two speculations at a time at anything other than `immediate`, so a keener setting does not mean more of them — it means they start earlier and are thrown away more often.'|t('speculatr'),
+    id: 'eagerness',
+    name: 'eagerness',
+    value: settings.eagerness,
+    options: [
+        { value: 'conservative', label: 'Conservative — on pointer or touch down'|t('speculatr') },
+        { value: 'moderate', label: 'Moderate — after about 200ms of hover'|t('speculatr') },
+        { value: 'eager', label: 'Eager — after about 10ms of hover'|t('speculatr') },
+        { value: 'immediate', label: 'Immediate — as soon as the page loads, without any interaction'|t('speculatr') },
+    ],
+    errors: settings.getErrors('eagerness'),
+}) }}
+
+<hr>
+
+<h2>{{ 'Who gets it'|t('speculatr') }}</h2>
+
+<p class="light">{{ 'Prerendering a page for a signed-in visitor runs that visitor’s personalised page in a hidden tab — which is both the most expensive page you serve and the one most likely to have something on it that should not happen twice.'|t('speculatr') }}</p>
+
+{{ forms.lightswitchField({
+    label: 'Signed-out visitors'|t('speculatr'),
+    id: 'forGuests',
+    name: 'forGuests',
+    on: settings.forGuests,
+}) }}
+
+{{ forms.lightswitchField({
+    label: 'Signed-in users'|t('speculatr'),
+    id: 'forLoggedIn',
+    name: 'forLoggedIn',
+    on: settings.forLoggedIn,
+}) }}
+
+{{ forms.lightswitchField({
+    label: 'Admins'|t('speculatr'),
+    instructions: 'Independent of the switch above, so you can try this on yourself before turning it on for everybody.'|t('speculatr'),
+    id: 'forAdmins',
+    name: 'forAdmins',
+    on: settings.forAdmins,
+}) }}
+
+{{ forms.lightswitchField({
+    label: 'Prefetch instead of prerender when signed in'|t('speculatr'),
+    instructions: 'The compromise. Signed-in visitors still get their next page from the prefetch cache, without a hidden tab running their scripts.'|t('speculatr'),
+    id: 'downgradeForLoggedIn',
+    name: 'downgradeForLoggedIn',
+    on: settings.downgradeForLoggedIn,
+}) }}
+
+<hr>
+
+<h2>{{ 'What never to speculate'|t('speculatr') }}</h2>
+
+<p class="light">{{ 'Craft’s own configuration is read first, so the control panel, action requests, every sign-in and sign-out path, and any URL carrying a preview, site or CSRF token are already excluded — under whatever names this site gives them. The Rules screen lists all of it.'|t('speculatr') }}</p>
+
+{{ forms.textField({
+    label: 'Opt-out class'|t('speculatr'),
+    instructions: 'A class on a link that opts it out. Leave empty for none.'|t('speculatr'),
+    id: 'optOutClass',
+    name: 'optOutClass',
+    value: settings.optOutClass,
+    size: 24,
+    errors: settings.getErrors('optOutClass'),
+}) }}
+
+{{ forms.lightswitchField({
+    label: 'Skip `rel="nofollow"` links'|t('speculatr'),
+    id: 'excludeNofollow',
+    name: 'excludeNofollow',
+    on: settings.excludeNofollow,
+}) }}
+
+{{ forms.lightswitchField({
+    label: 'Skip downloads'|t('speculatr'),
+    instructions: 'Links with a `download` attribute, and links to files rather than pages.'|t('speculatr'),
+    id: 'excludeDownloads',
+    name: 'excludeDownloads',
+    on: settings.excludeDownloads,
+}) }}
+
+{{ forms.lightswitchField({
+    label: 'Skip links that open in a new tab'|t('speculatr'),
+    instructions: 'A prerender cannot be handed to a new tab, so one started for a `target="_blank"` link is thrown away on activation — all of the cost, none of the benefit.'|t('speculatr'),
+    id: 'excludeNewWindow',
+    name: 'excludeNewWindow',
+    on: settings.excludeNewWindow,
+}) }}
+
+{{ forms.lightswitchField({
+    label: 'Skip every URL with a query string'|t('speculatr'),
+    instructions: 'Blunt, and the right answer for a site whose query strings mean “do something” rather than “show something”.'|t('speculatr'),
+    id: 'excludeQueryStrings',
+    name: 'excludeQueryStrings',
+    on: settings.excludeQueryStrings,
+}) }}
+
+{{ forms.editableTableField({
+    label: 'Paths'|t('speculatr'),
+    instructions: 'URI patterns never speculated. `*` wildcards, leading slash optional — `checkout/*` excludes `/checkout` and everything under it.'|t('speculatr'),
+    id: 'excludePaths',
+    name: 'excludePaths',
+    cols: { value: { type: 'singleline', heading: 'Pattern'|t('speculatr'), placeholder: 'checkout/*' } },
+    rows: settings.excludePaths|map(v => { value: v }),
+    addRowLabel: 'Add a path'|t('speculatr'),
+    allowAdd: true,
+    allowDelete: true,
+    allowReorder: true,
+    errors: settings.getErrors('excludePaths'),
+}) }}
+
+{{ forms.editableTableField({
+    label: 'Query parameters'|t('speculatr'),
+    instructions: 'A URL carrying one of these is never speculated, wherever it points.'|t('speculatr'),
+    id: 'excludeParams',
+    name: 'excludeParams',
+    cols: { value: { type: 'singleline', heading: 'Parameter'|t('speculatr'), placeholder: 'add-to-cart' } },
+    rows: settings.excludeParams|map(v => { value: v }),
+    addRowLabel: 'Add a parameter'|t('speculatr'),
+    allowAdd: true,
+    allowDelete: true,
+    allowReorder: true,
+    errors: settings.getErrors('excludeParams'),
+}) }}
+
+{{ forms.editableTableField({
+    label: 'Selectors'|t('speculatr'),
+    instructions: 'CSS selectors matched against the link itself. A link matching one is never speculated.'|t('speculatr'),
+    id: 'excludeSelectors',
+    name: 'excludeSelectors',
+    cols: { value: { type: 'singleline', heading: 'Selector'|t('speculatr'), placeholder: '[data-modal]' } },
+    rows: settings.excludeSelectors|map(v => { value: v }),
+    addRowLabel: 'Add a selector'|t('speculatr'),
+    allowAdd: true,
+    allowDelete: true,
+    allowReorder: true,
+    errors: settings.getErrors('excludeSelectors'),
+}) }}
+
+{{ forms.editableTableField({
+    label: 'File extensions'|t('speculatr'),
+    instructions: 'Treated as files rather than pages, when downloads are being skipped.'|t('speculatr'),
+    id: 'excludeExtensions',
+    name: 'excludeExtensions',
+    cols: { value: { type: 'singleline', heading: 'Extension'|t('speculatr'), placeholder: 'pdf' } },
+    rows: settings.excludeExtensions|map(v => { value: v }),
+    addRowLabel: 'Add an extension'|t('speculatr'),
+    allowAdd: true,
+    allowDelete: true,
+    allowReorder: true,
+    errors: settings.getErrors('excludeExtensions'),
+}) }}
+
+<hr>
+
+<h2>{{ 'Named URLs'|t('speculatr') }}</h2>
+
+{{ forms.editableTableField({
+    label: 'Always prefetch'|t('speculatr'),
+    instructions: 'Prefetched immediately on every page, whether or not anything links to them — for the two or three pages everybody ends up on. Prefetched and never prerendered: an unconditional prerender on every page view is a lot of page loads to spend on a guess.'|t('speculatr'),
+    id: 'prefetchUrls',
+    name: 'prefetchUrls',
+    cols: { value: { type: 'singleline', heading: 'URL'|t('speculatr'), placeholder: '/contact' } },
+    rows: settings.prefetchUrls|map(v => { value: v }),
+    addRowLabel: 'Add a URL'|t('speculatr'),
+    allowAdd: true,
+    allowDelete: true,
+    allowReorder: true,
+    errors: settings.getErrors('prefetchUrls'),
+}) }}
+
+<hr>
+
+<h2>{{ 'Tracking parameters'|t('speculatr') }}</h2>
+
+{{ forms.lightswitchField({
+    label: 'Ignore tracking parameters'|t('speculatr'),
+    instructions: 'Declares that these parameters do not change the page, so a prefetch of `/pricing` is still a hit when the reader arrives at `/pricing?utm_source=newsletter`. Sends a `No-Vary-Search` header and mirrors it into the rules.\n\nTurn this off if any of them genuinely changes what you serve.'|t('speculatr'),
+    id: 'ignoreTrackingParams',
+    name: 'ignoreTrackingParams',
+    on: settings.ignoreTrackingParams,
+}) }}
+
+{{ forms.editableTableField({
+    label: 'Parameters'|t('speculatr'),
+    id: 'trackingParams',
+    name: 'trackingParams',
+    cols: { value: { type: 'singleline', heading: 'Parameter'|t('speculatr'), placeholder: 'utm_source' } },
+    rows: settings.trackingParams|map(v => { value: v }),
+    addRowLabel: 'Add a parameter'|t('speculatr'),
+    allowAdd: true,
+    allowDelete: true,
+    allowReorder: true,
+    errors: settings.getErrors('trackingParams'),
+}) }}
+
+<hr>
+
+<h2>{{ 'Delivery'|t('speculatr') }}</h2>
+
+{{ forms.selectField({
+    label: 'How the rules reach the browser'|t('speculatr'),
+    instructions: 'Inline is a script element at the end of the page. If your Content-Security-Policy does not allow `\'inline-speculation-rules\'`, either add it or switch to the header, which points the browser at a JSON document instead.'|t('speculatr'),
+    id: 'delivery',
+    name: 'delivery',
+    value: settings.delivery,
+    options: [
+        { value: 'inline', label: 'Inline script element'|t('speculatr') },
+        { value: 'header', label: '`Speculation-Rules` header'|t('speculatr') },
+    ],
+    errors: settings.getErrors('delivery'),
+}) }}
+
+{{ forms.lightswitchField({
+    label: 'No rules on a speculated page'|t('speculatr'),
+    instructions: 'A page fetched *by* a speculation gets no rules of its own, so a prerender does not start prerendering. The second hop is a guess about a guess.'|t('speculatr'),
+    id: 'skipOnSpeculative',
+    name: 'skipOnSpeculative',
+    on: settings.skipOnSpeculative,
+}) }}
+
+{{ forms.lightswitchField({
+    label: 'Send `Vary: Sec-Purpose`'|t('speculatr'),
+    instructions: 'Needed whenever the setting above is on, or a shared cache will store the rules-free copy a prefetch received and serve it to real visitors. Leave this on unless you know your cache handles it another way.'|t('speculatr'),
+    id: 'varyOnSecPurpose',
+    name: 'varyOnSecPurpose',
+    on: settings.varyOnSecPurpose,
+}) }}
+
+{{ forms.editableTableField({
+    label: 'Pages that carry no rules'|t('speculatr'),
+    instructions: 'URI patterns whose *own* pages are served without rules. Different from the exclusions above, which are about where links point.'|t('speculatr'),
+    id: 'excludePages',
+    name: 'excludePages',
+    cols: { value: { type: 'singleline', heading: 'Pattern'|t('speculatr'), placeholder: 'account/*' } },
+    rows: settings.excludePages|map(v => { value: v }),
+    addRowLabel: 'Add a page'|t('speculatr'),
+    allowAdd: true,
+    allowDelete: true,
+    allowReorder: true,
+    errors: settings.getErrors('excludePages'),
+}) }}

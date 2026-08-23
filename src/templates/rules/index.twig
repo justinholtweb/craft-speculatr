@@ -1,0 +1,161 @@
+{% extends "_layouts/cp.twig" %}
+{% import "_includes/forms.twig" as forms %}
+
+{% set title = 'Speculation rules'|t('speculatr') %}
+{% set selectedSubnavItem = 'rules' %}
+
+{% set crumbs = [{ label: 'Speculatr'|t('speculatr'), url: url('speculatr/rules') }] %}
+
+{% block content %}
+
+    {# ------------------------------------------------------------------ status #}
+
+    {% if not settings.enabled %}
+        <div class="pane">
+            <p class="error">{{ 'Speculatr is turned off, so no rules are being sent.'|t('speculatr') }}</p>
+        </div>
+    {% endif %}
+
+    <div class="pane">
+        <h2>{{ 'What is being sent'|t('speculatr') }}</h2>
+
+        <div class="flex" style="gap: 1rem; align-items: flex-end; margin-bottom: 1rem;">
+            <form method="get" action="{{ url('speculatr/rules') }}" class="flex" style="gap: .5rem; align-items: flex-end;">
+                {{ forms.select({
+                    name: 'audience',
+                    value: audience,
+                    options: [
+                        { value: 'guest', label: 'As a signed-out visitor'|t('speculatr') },
+                        { value: 'me', label: 'As you, signed in'|t('speculatr') },
+                    ],
+                }) }}
+                {% if url %}<input type="hidden" name="url" value="{{ url }}">{% endif %}
+                <button type="submit" class="btn">{{ 'Show'|t('speculatr') }}</button>
+            </form>
+        </div>
+
+        {% if json %}
+            <p class="light">
+                {{ 'Mode for this audience'|t('speculatr') }}: <strong>{{ effectiveMode }}</strong>
+                {%- if deliveryUrl %} · {{ 'delivered by header from'|t('speculatr') }} <code>{{ deliveryUrl }}</code>{% endif %}
+            </p>
+            <pre style="overflow-x: auto; padding: 1rem; background: var(--gray-050, #f3f7fc); border-radius: 5px;"><code>{{ json }}</code></pre>
+        {% else %}
+            <p class="light">
+                {{ audience == 'guest'
+                    ? 'Signed-out visitors are served no rules.'|t('speculatr')
+                    : 'You are served no rules — check the audience switches in the settings.'|t('speculatr') }}
+            </p>
+        {% endif %}
+    </div>
+
+    {# ------------------------------------------------------------------ the tester #}
+
+    <div class="pane">
+        <h2>{{ 'Check a URL'|t('speculatr') }}</h2>
+
+        <p class="light">{{ 'The question worth asking, which is not “what are my rules” but “is it going to prerender the thing that signs people out”.'|t('speculatr') }}</p>
+
+        <form method="get" action="{{ url('speculatr/rules') }}" class="flex" style="gap: .5rem; align-items: flex-end; margin-bottom: 1rem;">
+            <input type="hidden" name="audience" value="{{ audience }}">
+            {{ forms.text({
+                name: 'url',
+                value: url,
+                placeholder: siteUrl('some/page'),
+                size: 60,
+            }) }}
+            <button type="submit" class="btn submit">{{ 'Check'|t('speculatr') }}</button>
+        </form>
+
+        {% if verdict %}
+            <table class="data fullwidth">
+                <tbody>
+                    <tr>
+                        <th style="width: 12rem;">{{ 'URL'|t('speculatr') }}</th>
+                        <td><code>{{ verdict.url }}</code></td>
+                    </tr>
+                    <tr>
+                        <th>{{ 'Verdict'|t('speculatr') }}</th>
+                        <td>
+                            {% if verdict.speculated %}
+                                <span class="status green"></span> {{ verdict.summary() }}
+                            {% else %}
+                                <span class="status" style="background: var(--medium-text-color, #606d7b);"></span>
+                                {{ 'Never speculated'|t('speculatr') }}
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% if verdict.reason %}
+                        <tr>
+                            <th>{{ 'Why'|t('speculatr') }}</th>
+                            <td>{{ verdict.reason|md(inlineOnly=true) }}</td>
+                        </tr>
+                    {% endif %}
+                    {% for caveat in verdict.caveats %}
+                        <tr>
+                            <th>{{ loop.first ? 'Caveat'|t('speculatr') : '' }}</th>
+                            <td class="light">{{ caveat }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+    </div>
+
+    {# ------------------------------------------------------------------ exclusions #}
+
+    <div class="pane">
+        <h2>{{ 'What is never speculated'|t('speculatr') }}</h2>
+
+        <p class="light">{{ 'Read from Craft’s own configuration first, so a renamed control panel or a custom logout path is covered without anybody remembering to say so.'|t('speculatr') }}</p>
+
+        {% if commerceInstalled %}
+            <p class="warning">
+                {{ 'Craft Commerce is installed. Its action requests are already excluded, but a cart or checkout page with a URI of its own is not — Speculatr cannot know what you called it. Add it under Paths in the settings.'|t('speculatr') }}
+            </p>
+        {% endif %}
+
+        <table class="data fullwidth">
+            <thead>
+                <tr>
+                    <th>{{ 'Source'|t('speculatr') }}</th>
+                    <th>{{ 'Matches'|t('speculatr') }}</th>
+                    <th>{{ 'Why'|t('speculatr') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% set labels = {
+                    craft: 'Craft'|t('speculatr'),
+                    builtin: 'Speculatr'|t('speculatr'),
+                    settings: 'Settings'|t('speculatr'),
+                    template: 'Template'|t('speculatr'),
+                } %}
+                {% for exclusion in exclusions %}
+                    <tr>
+                        <td style="width: 8rem;">{{ labels[exclusion.source] ?? exclusion.source }}</td>
+                        <td>
+                            {% if exclusion.isSelector() %}
+                                <code>{{ exclusion.selectorPattern() }}</code>
+                            {% else %}
+                                {% for pattern in exclusion.patterns() %}
+                                    <code>{{ pattern }}</code>{{ not loop.last ? ' ' }}
+                                {% endfor %}
+                            {% endif %}
+                        </td>
+                        <td class="light">{{ exclusion.reason|md(inlineOnly=true) }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {# ------------------------------------------------------------------ support #}
+
+    <div class="pane">
+        <h2>{{ 'Where this works'|t('speculatr') }}</h2>
+        <p class="light">
+            {{ 'Chromium browsers — Chrome, Edge, Opera, and Android’s browsers — from version 121. Safari and Firefox ignore the rules entirely, which costs their visitors nothing but the few hundred bytes of JSON. Chrome also declines to speculate under Data Saver, on a low battery, when memory is short, or when the reader has turned preloading off.'|t('speculatr') }}
+        </p>
+    </div>
+
+{% endblock %}
