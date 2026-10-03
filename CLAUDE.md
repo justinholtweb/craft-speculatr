@@ -57,6 +57,22 @@ never happens. `node -e 'new URLPattern(pattern, base).test(url)'` — Node 24 h
 
 - **`/admin/*` does not match `/admin`.** A path exclusion is genuinely *two* patterns, and the one
   it misses is the one that matters most. `Exclusion::patterns()` returns both.
+- **`/logout` does not match `/logout/`** — and Craft trims slashes before routing, so the second
+  signs somebody out just the same (and is what `addTrailingSlashesToUrls` writes). An exact path
+  is emitted as `/logout{/}?`, which matches both and not `/logoutx` or `/logout/x`.
+- **Craft routes are relative to the site's base URL, not the origin.** On a site served from
+  `/fr/`, logout is `/fr/logout`. `Exclusions::routePrefixes()` emits the Craft exclusions under
+  every site's base path, plus `index.php/` and a `pathParam` value match (`?p=logout`) on installs
+  that keep the script name in URLs.
+- **A typed path is URL-pattern syntax unless escaped.** `/cart(` throws, and one throwing pattern
+  gets the whole ruleset rejected. `Exclusion::literal()` backslash-escapes `\(){}+?` — but `\:`
+  *also* throws in the string form (the parser takes it for a protocol separator); `{\:}` is the
+  literal colon that works.
+- **List rules have no `where`,** so the exclusions do not reach `prefetchUrls` or a template's
+  `prefetch()` on their own. `Rules::document()` drops any named URL an exclusion covers.
+- **The rules-file URL is per audience, and only the guest copy at the current `v` is `public`.**
+  CDNs ignore `Vary: Cookie`; without `a=` in the URL a guest's prerender rules reach signed-in
+  visitors, and without checking `a`/`v` a guest can seed the shared copy of the signed-in URL.
 - **URL patterns have no case-insensitive flag.** `/*.pdf` does not match `/brochure.PDF`. A
   character class per letter (`[pP][dD][fF]`) is the only way, and all the extensions collapse into
   one alternation group — thirty-odd separate predicates were most of the bytes of a document sent
@@ -107,7 +123,7 @@ See also `[[craft-plugin-gotchas]]` in the shared memory for family-wide traps.
 No local PHP on this Mac. Everything runs inside the plugin-testing container:
 
 ```sh
-docker exec -w /var/www/html ddev-plugin-testing-web php /var/www/craft-speculatr/tests/integration/checks.php   # 101 checks
+docker exec -w /var/www/html ddev-plugin-testing-web php /var/www/craft-speculatr/tests/integration/checks.php   # 116 checks
 docker exec ddev-plugin-testing-web bash -c 'find /var/www/craft-speculatr/src -name "*.php" -print0 | xargs -0 -n1 php -l'
 ```
 

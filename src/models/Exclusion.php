@@ -32,6 +32,16 @@ class Exclusion extends Model
      */
     public const KIND_EXTENSION = 'extension';
 
+    /**
+     * A query parameter whose value starts with something: `?p=actions/…`.
+     *
+     * For installs that keep `index.php` in their URLs and route by `pathParam`, where the logout
+     * URL is `/index.php?p=logout` and no path pattern can see it. Excluding the parameter outright
+     * would exclude every page on such a site, so it is the value that is matched. `value` holds
+     * `name=prefix`.
+     */
+    public const KIND_PARAM_VALUE = 'paramValue';
+
     /** Any query string at all. */
     public const KIND_QUERY = 'query';
 
@@ -73,6 +83,16 @@ class Exclusion extends Model
     public static function param(string $value, string $reason, string $source = self::SOURCE_BUILTIN): self
     {
         return new self(['kind' => self::KIND_PARAM, 'value' => trim($value), 'reason' => $reason, 'source' => $source]);
+    }
+
+    public static function paramValue(string $name, string $prefix, string $reason, string $source = self::SOURCE_BUILTIN): self
+    {
+        return new self([
+            'kind' => self::KIND_PARAM_VALUE,
+            'value' => trim($name) . '=' . trim($prefix, '/ '),
+            'reason' => $reason,
+            'source' => $source,
+        ]);
     }
 
     /** @param string[] $extensions */
@@ -135,6 +155,11 @@ class Exclusion extends Model
             // `(^|&)` is a regex group, which is why `?other_name=` does not match.
             self::KIND_PARAM => ['/*\\?*(^|&)' . $this->value . '=*'],
 
+            // The same shape with the value's start pinned. No `/` after the prefix: Craft may
+            // write `p=actions/users/logout` or `p=actions%2Fusers%2Flogout` depending on how the
+            // URL was built, and the shorter prefix covers both.
+            self::KIND_PARAM_VALUE => ['/*\\?*(^|&)' . $this->paramName() . '=' . self::literal($this->paramPrefix()) . '*'],
+
             // One alternation group over every extension. A character class per letter, because
             // URL patterns have no case-insensitive flag and `/*.pdf` does not match
             // `/brochure.PDF`.
@@ -148,16 +173,61 @@ class Exclusion extends Model
         };
     }
 
-    /** @return string[] */
+    /**
+     * An exact path is emitted as `/logout{/}?`, because Craft trims slashes before routing:
+     * `/logout/` signs a reader out exactly as `/logout` does, and `addTrailingSlashesToUrls`
+     * makes it the form Craft itself writes. A bare `/logout` pattern does not match it.
+     *
+     * @return string[]
+     */
     private function pathPatterns(): array
     {
         if (str_ends_with($this->value, '/*')) {
             $base = rtrim(substr($this->value, 0, -2), '/');
 
-            return $base === '' ? ['/*'] : [$base, $this->value];
+            return $base === '' ? ['/*'] : [self::literal($base), self::literal($this->value)];
         }
 
-        return [$this->value];
+        if (str_contains($this->value, '*')) {
+            return [self::literal($this->value)];
+        }
+
+        $exact = rtrim($this->value, '/');
+
+        return $exact === '' ? ['/'] : [self::literal($exact) . '{/}?'];
+    }
+
+    /**
+     * A typed path made safe to put in a URL pattern, with `*` left as the wildcard.
+     *
+     * URL pattern syntax is not inert: `/cart(` throws, which makes Chrome reject the whole
+     * ruleset — speculation silently stops everywhere — and `:name`, `{}`, `+` and `?` all mean
+     * something. A backslash makes most of them literal. A colon is the exception: `\:` throws in
+     * the string form (the constructor reads it as the end of a protocol), and `{\:}` does not.
+     */
+    public static function literal(string $value): string
+    {
+        $out = '';
+
+        foreach (str_split($value) as $character) {
+            $out .= match ($character) {
+                ':' => '{\\:}',
+                '\\', '(', ')', '{', '}', '+', '?' => '\\' . $character,
+                default => $character,
+            };
+        }
+
+        return $out;
+    }
+
+    private function paramName(): string
+    {
+        return explode('=', $this->value, 2)[0];
+    }
+
+    private function paramPrefix(): string
+    {
+        return explode('=', $this->value, 2)[1] ?? '';
     }
 
     /** The `selector_matches` value, or null for a URL pattern. */
@@ -181,6 +251,8 @@ class Exclusion extends Model
         return match ($this->kind) {
             self::KIND_PATH => $this->matchesPath($path),
             self::KIND_PARAM => array_key_exists($this->value, $params),
+            self::KIND_PARAM_VALUE => is_string($params[$this->paramName()] ?? null)
+                && str_starts_with(ltrim($params[$this->paramName()], '/'), $this->paramPrefix()),
             self::KIND_EXTENSION => $this->matchesExtension($path),
             self::KIND_QUERY => $params !== [],
             default => false,
@@ -206,7 +278,8 @@ class Exclusion extends Model
             return fnmatch($this->value, $path);
         }
 
-        return $path === $this->value;
+        // Either side may carry the trailing slash; the emitted `{/}?` accepts both.
+        return rtrim($path, '/') === rtrim($this->value, '/');
     }
 
     /** @return string[] */

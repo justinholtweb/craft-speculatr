@@ -25,6 +25,7 @@ downsampled so the type stays crisp).
 | 5 | The four eagerness levels, with Chrome's limits | keener means earlier, not more |
 | 6 | Guests, signed-in, admins, and a prefetched page | who gets it, and the downgrade |
 | 7 | `speculatr/rules/check` in a terminal | it can be asked about one link |
+| 8 | The control panel's rules screen (`shots/speculatr-rules.png`) | the actual JSON for each audience |
 
 ## Notes
 

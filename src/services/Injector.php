@@ -206,7 +206,7 @@ class Injector extends Component
             return false;
         }
 
-        $url = UrlHelper::siteUrl('speculatr/rules.json', ['v' => $this->version()]);
+        $url = $this->documentUrl($user);
 
         // A structured-field list of strings, so the URL is quoted.
         $response->getHeaders()->add('Speculation-Rules', '"' . $url . '"');
@@ -309,6 +309,39 @@ class Injector extends Component
         }
 
         $headers->set('Vary', $existing . ', ' . self::SEC_PURPOSE);
+    }
+
+    /**
+     * Where this visitor's rules file lives.
+     *
+     * Guests and signed-in visitors are served different documents — signed-in prerendering is
+     * downgraded to prefetching — so they are given different URLs. A cache keyed on the URL alone
+     * (which is most CDNs: Cloudflare ignores `Vary: Cookie`) then cannot hand one audience's rules
+     * to the other, and least of all the guest's prerender rules to somebody signed in.
+     */
+    public function documentUrl($user): string
+    {
+        return UrlHelper::siteUrl('speculatr/rules.json', [
+            'v' => $this->version(),
+            'a' => $user === null ? 'guest' : 'user',
+        ]);
+    }
+
+    /**
+     * The `Cache-Control` for the rules file.
+     *
+     * Only the guest copy is the same for everybody, and only at the URL a guest page actually
+     * points to. Anything else is `private`: a signed-in visitor's copy is built for them, and a
+     * guest asking for `a=user` — or for a stale or invented `v` — must not be able to seed a
+     * shared cache with the guest document under a URL signed-in pages will then fetch from it.
+     */
+    public function documentCacheControl($user, ?string $audience = 'guest', ?string $version = null): string
+    {
+        $public = $user === null
+            && $audience === 'guest'
+            && ($version === null || $version === $this->version());
+
+        return ($public ? 'public' : 'private') . ', max-age=3600';
     }
 
     /**

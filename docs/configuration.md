@@ -136,7 +136,9 @@ whole thing off if any parameter in your list genuinely changes what you serve.
 
 `delivery: header` sends a `Speculation-Rules` header pointing at a JSON document at
 `/speculatr/rules.json`, fingerprinted so a change to your exclusions reaches everybody on their next
-page view. It is the answer for a site whose Content-Security-Policy will not allow
+page view. Guests and signed-in visitors are sent separate URLs, and only the guest copy is marked
+`public`, so a CDN that ignores `Vary: Cookie` still cannot hand one audience's rules to the other.
+It is the answer for a site whose Content-Security-Policy will not allow
 `'inline-speculation-rules'`. Per-page additions from templates still go inline in that mode — a
 rules *file* is one document for the whole site by definition, so it cannot carry them.
 

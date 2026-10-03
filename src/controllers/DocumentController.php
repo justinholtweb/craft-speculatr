@@ -41,11 +41,20 @@ class DocumentController extends Controller
         $headers->set('content-type', 'application/speculationrules+json');
 
         // The URL carries a fingerprint of the settings, so a long cache is safe and a change to
-        // the exclusions still reaches everybody on their next page view.
-        $headers->set('cache-control', 'public, max-age=3600');
+        // the exclusions still reaches everybody on their next page view. Only the guest copy may
+        // sit in a shared cache; a signed-in visitor's is private.
+        // `?a[]=` arrives as an array; casting one would warn, and in dev mode a warning is a 500.
+        $request = Craft::$app->getRequest();
+        $audience = $request->getQueryParam('a');
+        $version = $request->getQueryParam('v');
+        $headers->set('cache-control', $plugin->injector->documentCacheControl(
+            $user,
+            is_string($audience) ? $audience : '',
+            is_string($version) ? $version : '',
+        ));
 
-        // The document depends on who is asking, so a shared cache must not reuse one visitor's
-        // copy for another's. Without this a signed-in user's ruleset can be handed to a guest.
+        // The document depends on who is asking. The audience is in the URL for caches that key on
+        // nothing else; this is for the browser, whose own cache does honour it.
         $headers->set('vary', 'Cookie');
 
         return $response;

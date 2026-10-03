@@ -130,7 +130,9 @@ any parameter in the list genuinely changes what you serve.
 Inline by default. If your Content-Security-Policy will not allow `'inline-speculation-rules'`,
 switch to the **header**: Speculatr sends `Speculation-Rules` pointing at a JSON document at
 `/speculatr/rules.json`, fingerprinted so a change to your exclusions reaches everybody on their
-next page view.
+next page view. Guests and signed-in visitors are sent separate URLs, and only the guest copy is
+marked `public` — so a CDN that ignores `Vary: Cookie` still cannot hand one audience's rules to the
+other.
 
 Per-page additions from templates still go inline in that mode — a rules *file* is one document for
 the whole site by definition, so it cannot carry them.

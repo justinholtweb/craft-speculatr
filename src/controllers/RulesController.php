@@ -16,6 +16,8 @@ class RulesController extends Controller
 {
     public function actionIndex(): Response
     {
+        // A CP screen only — not also reachable as `/actions/speculatr/rules/index` on the front end.
+        $this->requireCpRequest();
         $this->requirePermission(Plugin::PERMISSION_VIEW);
 
         $plugin = Plugin::getInstance();

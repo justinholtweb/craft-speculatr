@@ -126,6 +126,11 @@ class Rules extends Component
             $action = $rule['action'];
             $urls = array_values(array_diff($rule['urls'], $seen[$action] ?? []));
 
+            // A list rule has no `where`, so the exclusions would not apply to it on their own.
+            // Naming `/logout` in the settings, or a template prefetching a URL it was handed,
+            // must not be a way around the one thing this plugin exists to guarantee.
+            $urls = array_values(array_filter($urls, fn(string $url) => !$this->isExcludedUrl($url)));
+
             if ($urls === []) {
                 continue;
             }
@@ -140,6 +145,23 @@ class Rules extends Component
         }
 
         return $document;
+    }
+
+    /** Whether an exclusion covers a named URL; logs it when one does, so the drop is findable. */
+    private function isExcludedUrl(string $url): bool
+    {
+        $path = (string)parse_url($url, PHP_URL_PATH);
+        parse_str((string)parse_url($url, PHP_URL_QUERY), $params);
+
+        $exclusion = Plugin::getInstance()->exclusions->firstMatch($path, $params);
+
+        if ($exclusion === null) {
+            return false;
+        }
+
+        Craft::warning("Not speculating $url, which is excluded: $exclusion->reason", 'speculatr');
+
+        return true;
     }
 
     /**

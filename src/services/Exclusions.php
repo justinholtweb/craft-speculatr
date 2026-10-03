@@ -80,16 +80,33 @@ class Exclusions extends Component
         $general = Craft::$app->getConfig()->getGeneral();
         $out = [];
 
+        // Every place a Craft route can start. These paths are relative to a site's base URL, not
+        // to the origin: on a site served from `/fr/`, logout is `/fr/logout`, and a pattern
+        // written as `/logout` does not see it.
+        $prefixes = $this->routePrefixes();
+        $routed = static function(string $path, string $reason) use (&$out, $prefixes): void {
+            foreach ($prefixes as $prefix) {
+                $out[] = Exclusion::path(ltrim($prefix . '/' . $path, '/'), $reason, Exclusion::SOURCE_CRAFT);
+            }
+        };
+
+        // Installs that route by query parameter (`index.php?p=logout`) put the path where no path
+        // pattern can see it.
+        $pathParam = $general->omitScriptNameInUrls ? '' : trim((string)$general->pathParam);
+        $byParam = static function(string $path, string $reason) use (&$out, $pathParam): void {
+            if ($pathParam !== '') {
+                $out[] = Exclusion::paramValue($pathParam, $path, $reason, Exclusion::SOURCE_CRAFT);
+            }
+        };
+
         // The control panel. `cpTrigger` is null when the CP is served from its own hostname, in
         // which case a same-origin rule cannot reach it anyway.
         $cpTrigger = $general->cpTrigger;
 
         if (is_string($cpTrigger) && trim($cpTrigger, '/') !== '') {
-            $out[] = Exclusion::path(
-                trim($cpTrigger, '/') . '/*',
-                Craft::t('speculatr', 'The control panel (`cpTrigger`)'),
-                Exclusion::SOURCE_CRAFT,
-            );
+            $reason = Craft::t('speculatr', 'The control panel (`cpTrigger`)');
+            $routed(trim($cpTrigger, '/') . '/*', $reason);
+            $byParam(trim($cpTrigger, '/'), $reason);
         }
 
         // Action requests. Prerendering one of these does not load a page — it *performs the
@@ -97,11 +114,9 @@ class Exclusions extends Component
         $actionTrigger = trim((string)$general->actionTrigger, '/');
 
         if ($actionTrigger !== '') {
-            $out[] = Exclusion::path(
-                $actionTrigger . '/*',
-                Craft::t('speculatr', 'Action requests (`actionTrigger`)'),
-                Exclusion::SOURCE_CRAFT,
-            );
+            $reason = Craft::t('speculatr', 'Action requests (`actionTrigger`)');
+            $routed($actionTrigger . '/*', $reason);
+            $byParam($actionTrigger, $reason);
         }
 
         // The same thing again, as a query parameter. Craft routes `?action=…` whatever the path
@@ -134,7 +149,8 @@ class Exclusions extends Component
                 continue;
             }
 
-            $out[] = Exclusion::path(trim($path, '/'), $reason, Exclusion::SOURCE_CRAFT);
+            $routed(trim($path, '/'), $reason);
+            $byParam(trim($path, '/'), $reason);
         }
 
         // Craft's tokens. A preview or share token has a duration and, often, a usage limit; a
@@ -275,6 +291,37 @@ class Exclusions extends Component
         }
 
         return null;
+    }
+
+    /**
+     * The path prefixes a Craft route can sit under: `''` for the origin root, each site's own
+     * base path (`fr` for `https://example.com/fr/`), and `index.php` after each of those on an
+     * install that keeps the script name in its URLs.
+     *
+     * @return string[]
+     */
+    public function routePrefixes(): array
+    {
+        $bases = ['' => true];
+
+        try {
+            foreach (Craft::$app->getSites()->getAllSites() as $site) {
+                $base = trim((string)parse_url((string)$site->getBaseUrl(), PHP_URL_PATH), '/');
+                $bases[$base] = true;
+            }
+        } catch (\Throwable) {
+            // No sites to read is a fresh install; the root is still covered.
+        }
+
+        $prefixes = array_keys($bases);
+
+        if (!Craft::$app->getConfig()->getGeneral()->omitScriptNameInUrls) {
+            foreach (array_keys($bases) as $base) {
+                $prefixes[] = ltrim($base . '/index.php', '/');
+            }
+        }
+
+        return array_values(array_unique(array_map('strval', $prefixes)));
     }
 
     /**

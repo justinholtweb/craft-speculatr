@@ -183,8 +183,30 @@ check('a path exclusion emits both the bare and the wildcard form', function() {
         ?: 'got ' . json_encode(Exclusion::path('admin/*', 'x')->patterns());
 });
 
-check('an exact path emits one pattern', function() {
-    return Exclusion::path('logout', 'x')->patterns() === ['/logout'];
+check('an exact path emits one pattern that also takes a trailing slash', function() {
+    // `/logout` does not match `/logout/`, which Craft routes to the same action — verified
+    // against a real URLPattern. `/logout{/}?` matches both, and not `/logoutx` or `/logout/x`.
+    return Exclusion::path('logout', 'x')->patterns() === ['/logout{/}?']
+        && Exclusion::path('/cart/', 'x')->patterns() === ['/cart{/}?']
+        ?: 'got ' . json_encode(Exclusion::path('logout', 'x')->patterns());
+});
+
+check('pattern syntax in a typed path is escaped, the wildcard is not', function() {
+    // `/cart(` throws in URLPattern, and a ruleset that throws is rejected whole. `\:` throws too
+    // in the string form; `{\:}` is the literal colon that does not.
+    $got = [
+        Exclusion::path('cart(old)', 'x')->patterns(),
+        Exclusion::path('a:b/*', 'x')->patterns(),
+        Exclusion::path('c++*', 'x')->patterns(),
+    ];
+
+    return $got === [['/cart\\(old\\){/}?'], ['/a{\\:}b', '/a{\\:}b/*'], ['/c\\+\\+*']]
+        ?: 'got ' . json_encode($got);
+});
+
+check('a parameter-value exclusion pins the start of the value', function() {
+    return Exclusion::paramValue('p', 'actions', 'x')->patterns() === ['/*\?*(^|&)p=actions*']
+        ?: 'got ' . json_encode(Exclusion::paramValue('p', 'actions', 'x')->patterns());
 });
 
 check('a parameter exclusion anchors on the start or an ampersand', function() {
@@ -225,6 +247,13 @@ $cases = [
     [Exclusion::path('admin/*', 'x'), '/administrator', [], false],
     [Exclusion::path('logout', 'x'), '/logout', [], true],
     [Exclusion::path('logout', 'x'), '/logout-page', [], false],
+    [Exclusion::path('logout', 'x'), '/logout/', [], true],
+    [Exclusion::path('logout', 'x'), '/logout/x', [], false],
+    [Exclusion::path('cart/', 'x'), '/cart', [], true],
+    [Exclusion::paramValue('p', 'actions', 'x'), '/index.php', ['p' => 'actions/users/logout'], true],
+    [Exclusion::paramValue('p', 'logout', 'x'), '/index.php', ['p' => 'logout'], true],
+    [Exclusion::paramValue('p', 'actions', 'x'), '/index.php', ['p' => 'blog'], false],
+    [Exclusion::paramValue('p', 'actions', 'x'), '/index.php', ['xp' => 'actions'], false],
     [Exclusion::param('action', 'x'), '/page', ['action' => 'a'], true],
     [Exclusion::param('action', 'x'), '/page', ['transaction' => 'a'], false],
     [Exclusion::param('action', 'x'), '/page', [], false],
@@ -282,7 +311,7 @@ check('the logout path is excluded', function() use ($plugin) {
     }
 
     foreach ($plugin->exclusions->fromCraft() as $exclusion) {
-        if (in_array('/' . trim($logout, '/'), $exclusion->patterns(), true)) {
+        if (in_array('/' . trim($logout, '/') . '{/}?', $exclusion->patterns(), true)) {
             return true;
         }
     }
@@ -319,6 +348,79 @@ check('an auth path configured as false is skipped rather than excluding the sit
     }
 
     return true;
+});
+
+check('a site served from a subfolder has its own Craft routes excluded', function() use ($plugin) {
+    // On `https://example.com/fr/`, logout is `/fr/logout` and actions are `/fr/actions/…`. A
+    // pattern written from the origin root sees neither.
+    $site = Craft::$app->getSites()->getPrimarySite();
+    $original = $site->getBaseUrl(false);
+    $general = Craft::$app->getConfig()->getGeneral();
+    $trigger = trim((string)$general->actionTrigger, '/');
+    $logout = is_string($general->logoutPath) ? trim($general->logoutPath, '/') : '';
+
+    try {
+        $site->setBaseUrl('https://example.test/fr/');
+        $plugin->exclusions->reset();
+
+        $paths = [];
+        $patterns = [];
+
+        foreach ($plugin->exclusions->fromCraft() as $exclusion) {
+            $patterns = [...$patterns, ...$exclusion->patterns()];
+        }
+
+        $hits = $plugin->exclusions->firstMatch('/fr/' . $trigger . '/users/logout', []) !== null
+            && in_array('/fr/' . $trigger . '/*', $patterns, true)
+            && in_array('/' . $trigger . '/*', $patterns, true)
+            && ($logout === '' || in_array('/fr/' . $logout . '{/}?', $patterns, true));
+    } finally {
+        $site->setBaseUrl($original);
+        $plugin->exclusions->reset();
+    }
+
+    return $hits ?: 'subfolder routes not covered: ' . json_encode($patterns);
+});
+
+check('an install that keeps index.php in its URLs is covered both ways', function() use ($plugin) {
+    $general = Craft::$app->getConfig()->getGeneral();
+    $original = $general->omitScriptNameInUrls;
+    $trigger = trim((string)$general->actionTrigger, '/');
+
+    try {
+        $general->omitScriptNameInUrls = false;
+        $plugin->exclusions->reset();
+
+        $byPath = $plugin->exclusions->firstMatch('/index.php/' . $trigger . '/users/logout', []) !== null;
+        $byParam = $plugin->exclusions->firstMatch('/index.php', [$general->pathParam => $trigger . '/users/logout']) !== null;
+        $page = $plugin->exclusions->firstMatch('/index.php', [$general->pathParam => 'blog']) === null;
+    } finally {
+        $general->omitScriptNameInUrls = $original;
+        $plugin->exclusions->reset();
+    }
+
+    return ($byPath && $byParam && $page) ?: json_encode(compact('byPath', 'byParam', 'page'));
+});
+
+check('a named URL that an exclusion covers is never emitted', function() use ($plugin, $configure, $restore) {
+    $trigger = trim((string)Craft::$app->getConfig()->getGeneral()->actionTrigger, '/');
+    $configure(['prefetchUrls' => ['/about', '/' . $trigger . '/users/logout']]);
+    $plugin->rules->addUrls(['/contact', '/?action=users/logout'], 'prerender');
+    $document = $plugin->rules->document();
+    $plugin->rules->reset();
+    $restore();
+
+    $listed = [];
+
+    foreach ([...($document['prefetch'] ?? []), ...($document['prerender'] ?? [])] as $rule) {
+        if (($rule['source'] ?? null) === 'list') {
+            $listed = [...$listed, ...$rule['urls']];
+        }
+    }
+
+    sort($listed);
+
+    return $listed === ['/about', '/contact'] ?: 'listed ' . json_encode($listed);
 });
 
 check('the settings’ own exclusions arrive', function() use ($plugin, $configure, $restore) {
@@ -883,6 +985,35 @@ check('the version fingerprint changes when the rules do', function() use ($plug
     $restore();
 
     return $before !== $after && strlen($before) === 8;
+});
+
+check('guests and signed-in visitors are sent different rules-file URLs', function() use ($plugin) {
+    $guest = $plugin->injector->documentUrl(null);
+    $member = $plugin->injector->documentUrl(new craft\elements\User());
+
+    return $guest !== $member
+        && str_contains($guest, 'a=guest')
+        && str_contains($member, 'a=user')
+        && str_contains($guest, 'v=' . $plugin->injector->version());
+});
+
+check('only the guest rules file may sit in a shared cache', function() use ($plugin) {
+    $guest = $plugin->injector->documentCacheControl(null);
+    $member = $plugin->injector->documentCacheControl(new craft\elements\User());
+    $admin = $plugin->injector->documentCacheControl(new craft\elements\User(['admin' => true]));
+
+    return str_starts_with($guest, 'public')
+        && str_starts_with($member, 'private')
+        && str_starts_with($admin, 'private');
+});
+
+check('a guest cannot seed a shared cache under the signed-in or a stale URL', function() use ($plugin) {
+    $v = $plugin->injector->version();
+
+    return str_starts_with($plugin->injector->documentCacheControl(null, 'guest', $v), 'public')
+        && str_starts_with($plugin->injector->documentCacheControl(null, 'user', $v), 'private')
+        && str_starts_with($plugin->injector->documentCacheControl(null, 'guest', 'stale123'), 'private')
+        && str_starts_with($plugin->injector->documentCacheControl(null, '', ''), 'private');
 });
 
 // ------------------------------------------------------------------ runtime additions

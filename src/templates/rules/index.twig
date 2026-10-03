@@ -88,7 +88,7 @@
                     {% if verdict.reason %}
                         <tr>
                             <th>{{ 'Why'|t('speculatr') }}</th>
-                            <td>{{ verdict.reason|md(inlineOnly=true) }}</td>
+                            <td>{{ verdict.reason|md(inlineOnly=true, encode=true) }}</td>
                         </tr>
                     {% endif %}
                     {% for caveat in verdict.caveats %}
@@ -142,7 +142,7 @@
                                 {% endfor %}
                             {% endif %}
                         </td>
-                        <td class="light">{{ exclusion.reason|md(inlineOnly=true) }}</td>
+                        <td class="light">{{ exclusion.reason|md(inlineOnly=true, encode=true) }}</td>
                     </tr>
                 {% endfor %}
             </tbody>

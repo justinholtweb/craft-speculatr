@@ -15,6 +15,7 @@
         "instant-navigation"
     ],
     "license": "proprietary",
+    "homepage": "https://justinholt.com/plugins/craft-speculatr",
     "authors": [
         {
             "name": "Justin Holt",
@@ -22,7 +23,10 @@
         }
     ],
     "support": {
-        "email": "justin@justinholt.com"
+        "email": "justin@justinholt.com",
+        "docs": "https://justinholt.com/plugins/craft-speculatr/docs",
+        "source": "https://github.com/justinholtweb/craft-speculatr",
+        "issues": "https://github.com/justinholtweb/craft-speculatr/issues"
     },
     "minimum-stability": "stable",
     "prefer-stable": true,
@@ -52,7 +56,7 @@
         "handle": "speculatr",
         "developer": "Justin Holt",
         "developerUrl": "https://justinholt.com",
-        "documentationUrl": "https://github.com/justinholtweb/craft-speculatr/blob/main/README.md",
+        "documentationUrl": "https://justinholt.com/plugins/craft-speculatr/docs",
         "changelogUrl": "https://raw.githubusercontent.com/justinholtweb/craft-speculatr/main/CHANGELOG.md",
         "class": "justinholtweb\\speculatr\\Plugin"
     }
