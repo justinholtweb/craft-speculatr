@@ -94,7 +94,7 @@ class Rules extends Component
         $mode = $this->effectiveMode($user);
         $document = [];
 
-        $where = $this->where();
+        $where = $this->where($user);
         $noVarySearch = $settings->noVarySearch();
 
         // `both` prefetches at the configured eagerness and prerenders one step behind it. The two
@@ -129,7 +129,7 @@ class Rules extends Component
             // A list rule has no `where`, so the exclusions would not apply to it on their own.
             // Naming `/logout` in the settings, or a template prefetching a URL it was handed,
             // must not be a way around the one thing this plugin exists to guarantee.
-            $urls = array_values(array_filter($urls, fn(string $url) => !$this->isExcludedUrl($url)));
+            $urls = array_values(array_filter($urls, fn(string $url) => !$this->isExcludedUrl($url, $user === null)));
 
             if ($urls === []) {
                 continue;
@@ -148,12 +148,12 @@ class Rules extends Component
     }
 
     /** Whether an exclusion covers a named URL; logs it when one does, so the drop is findable. */
-    private function isExcludedUrl(string $url): bool
+    private function isExcludedUrl(string $url, bool $guest): bool
     {
         $path = (string)parse_url($url, PHP_URL_PATH);
         parse_str((string)parse_url($url, PHP_URL_QUERY), $params);
 
-        $exclusion = Plugin::getInstance()->exclusions->firstMatch($path, $params);
+        $exclusion = Plugin::getInstance()->exclusions->firstMatch($path, $params, $guest);
 
         if ($exclusion === null) {
             return false;
@@ -195,7 +195,7 @@ class Rules extends Component
      *
      * @return array<string, mixed>
      */
-    public function where(): array
+    public function where(?User $user = null): array
     {
         $exclusions = Plugin::getInstance()->exclusions;
 
@@ -203,7 +203,7 @@ class Rules extends Component
             ['href_matches' => '/*', 'relative_to' => 'document'],
         ];
 
-        foreach ($exclusions->urlExclusions() as $exclusion) {
+        foreach ($exclusions->urlExclusions($user === null) as $exclusion) {
             foreach ($exclusion->patterns() as $pattern) {
                 $predicates[] = ['not' => ['href_matches' => $pattern, 'relative_to' => 'document']];
             }
@@ -370,7 +370,7 @@ class Rules extends Component
             parse_str($parsed['query'], $params);
         }
 
-        $blocked = Plugin::getInstance()->exclusions->firstMatch($path, $params);
+        $blocked = Plugin::getInstance()->exclusions->firstMatch($path, $params, $user === null);
 
         if ($blocked !== null) {
             $verdict->blockedBy = $blocked;
@@ -407,7 +407,7 @@ class Rules extends Component
     // ------------------------------------------------------------------ runtime additions
 
     /**
-     * @param string|string[] $urls
+     * @param string|array<mixed> $urls A template can hand over anything; non-strings are dropped.
      */
     public function addUrls(string|array $urls, string $action = 'prefetch', string $eagerness = 'immediate'): void
     {
@@ -547,15 +547,5 @@ class Rules extends Component
         }
 
         return $scheme . '://' . strtolower($parts['host']) . ($port !== null ? ':' . $port : '');
-    }
-
-    /** The primary origin, for trimming absolute URLs down to paths. */
-    private function origin(): ?string
-    {
-        try {
-            return $this->normalizeOrigin(UrlHelper::baseSiteUrl());
-        } catch (\Throwable) {
-            return null;
-        }
     }
 }

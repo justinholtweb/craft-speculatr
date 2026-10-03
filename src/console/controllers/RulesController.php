@@ -69,7 +69,7 @@ class RulesController extends Controller
                 "  %-10s %-34s %s\n",
                 $labels[$exclusion->source] ?? $exclusion->source,
                 implode('  ', $patterns),
-                strip_tags($exclusion->reason),
+                strip_tags($exclusion->reason) . ($exclusion->signedInOnly ? ' (signed-in only)' : ''),
             ));
         }
 

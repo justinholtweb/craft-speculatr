@@ -142,7 +142,12 @@
                                 {% endfor %}
                             {% endif %}
                         </td>
-                        <td class="light">{{ exclusion.reason|md(inlineOnly=true, encode=true) }}</td>
+                        <td class="light">
+                            {{ exclusion.reason|md(inlineOnly=true, encode=true) }}
+                            {% if exclusion.signedInOnly %}
+                                <br>{{ 'Signed-in visitors’ rules only, so a renamed control panel is not published to everybody.'|t('speculatr') }}
+                            {% endif %}
+                        </td>
                     </tr>
                 {% endfor %}
             </tbody>

@@ -54,7 +54,7 @@ Read from **Craft's own configuration**, under whatever names this site gives th
 
 | | |
 |---|---|
-| `cpTrigger` | the control panel, at `/admin` or wherever you moved it |
+| `cpTrigger` | the control panel, at `/admin` or wherever you moved it — in signed-in visitors' rules only, so a renamed one is not published to everybody |
 | `actionTrigger` | action requests — and `?action=` too, since Craft routes those from any path |
 | `loginPath`, `logoutPath` | prerendering a logout is how a reader gets signed out by hovering |
 | `setPasswordPath` and friends | every account path Craft knows about |

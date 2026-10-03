@@ -212,7 +212,7 @@ class Settings extends Model
             [['optOutClass'], 'match', 'pattern' => '/^[A-Za-z_-][A-Za-z0-9_-]*$/', 'skipOnEmpty' => true],
             [
                 ['excludePaths', 'excludeParams', 'excludeSelectors', 'excludeExtensions',
-                    'prefetchUrls', 'trackingParams', 'excludePages'],
+                    'prefetchUrls', 'trackingParams', 'excludePages', ],
                 'validateList',
                 'skipOnEmpty' => false,
             ],

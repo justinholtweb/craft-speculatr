@@ -70,6 +70,14 @@ class Exclusion extends Model
 
     public string $source = self::SOURCE_BUILTIN;
 
+    /**
+     * @var bool Sent only in a signed-in visitor's rules.
+     *
+     * For an exclusion that would give something away to a stranger: the rules are public, so
+     * excluding a renamed control panel in a guest's rules is the same as publishing where it is.
+     */
+    public bool $signedInOnly = false;
+
     public static function path(string $value, string $reason, string $source = self::SOURCE_BUILTIN): self
     {
         return new self([

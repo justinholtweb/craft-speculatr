@@ -350,6 +350,35 @@ check('an auth path configured as false is skipped rather than excluding the sit
     return true;
 });
 
+check('the control panel exclusion is only in signed-in visitors’ rules', function() use ($plugin, $configure, $restore) {
+    // The rules are public. A guest's copy naming a renamed cpTrigger publishes it.
+    $trigger = trim((string)Craft::$app->getConfig()->getGeneral()->cpTrigger, '/');
+    $configure(['enabled' => true, 'forGuests' => true, 'forLoggedIn' => true]);
+
+    $guest = $plugin->rules->json(null);
+    $member = $plugin->rules->json(new craft\elements\User());
+    $guestVerdict = $plugin->rules->explain('/' . $trigger . '/entries', null);
+    $memberVerdict = $plugin->rules->explain('/' . $trigger . '/entries', new craft\elements\User());
+    $restore();
+
+    $needle = '"/' . $trigger . '/*"';
+
+    return !str_contains($guest, $needle)
+        && str_contains($member, $needle)
+        && $guestVerdict->blockedBy === null
+        && $memberVerdict->blockedBy !== null
+        ?: json_encode(['guest' => str_contains($guest, $needle), 'member' => str_contains($member, $needle)]);
+});
+
+check('everything else is in a guest’s rules too', function() use ($plugin, $configure, $restore) {
+    $trigger = trim((string)Craft::$app->getConfig()->getGeneral()->actionTrigger, '/');
+    $configure(['enabled' => true, 'forGuests' => true]);
+    $guest = $plugin->rules->json(null);
+    $restore();
+
+    return str_contains($guest, '"/' . $trigger . '/*"') && str_contains($guest, 'action=*');
+});
+
 check('a site served from a subfolder has its own Craft routes excluded', function() use ($plugin) {
     // On `https://example.com/fr/`, logout is `/fr/logout` and actions are `/fr/actions/…`. A
     // pattern written from the origin root sees neither.
@@ -728,10 +757,14 @@ check('an ordinary page is speculated', function() use ($plugin, $configure, $re
         && $verdict->summary() === 'prerender (moderate)';
 });
 
-check('the control panel is not', function() use ($plugin) {
+check('the control panel is not, for anybody signed in', function() use ($plugin, $configure, $restore) {
+    // A guest's rules leave the control panel out on purpose — see the signed-in-only check.
     $trigger = trim((string)Craft::$app->getConfig()->getGeneral()->cpTrigger, '/');
+    $configure(['forLoggedIn' => true]);
+    $verdict = $plugin->rules->explain('/' . $trigger . '/entries', new craft\elements\User());
+    $restore();
 
-    return $plugin->rules->explain('/' . $trigger . '/entries', null)->speculated === false;
+    return $verdict->speculated === false;
 });
 
 check('an action query parameter is not', function() use ($plugin) {
@@ -992,6 +1025,8 @@ check('guests and signed-in visitors are sent different rules-file URLs', functi
     $member = $plugin->injector->documentUrl(new craft\elements\User());
 
     return $guest !== $member
+        && str_starts_with($guest, '/') && !str_starts_with($guest, '//')
+        && str_contains($guest, 'speculatr/rules.json')
         && str_contains($guest, 'a=guest')
         && str_contains($member, 'a=user')
         && str_contains($guest, 'v=' . $plugin->injector->version());

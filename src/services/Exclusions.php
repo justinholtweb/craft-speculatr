@@ -48,10 +48,18 @@ class Exclusions extends Component
         return [...$this->memo, ...$this->runtime];
     }
 
-    /** @return Exclusion[] Just the URL-pattern ones. */
-    public function urlExclusions(): array
+    /**
+     * Just the URL-pattern ones.
+     *
+     * @param bool $guest Leave out what only a signed-in visitor's rules carry.
+     * @return Exclusion[]
+     */
+    public function urlExclusions(bool $guest = false): array
     {
-        return array_values(array_filter($this->all(), static fn(Exclusion $e) => !$e->isSelector()));
+        return array_values(array_filter(
+            $this->all(),
+            static fn(Exclusion $e) => !$e->isSelector() && !($guest && $e->signedInOnly),
+        ));
     }
 
     /** @return Exclusion[] Just the ones that are a fact about an anchor rather than a URL. */
@@ -103,10 +111,20 @@ class Exclusions extends Component
         // which case a same-origin rule cannot reach it anyway.
         $cpTrigger = $general->cpTrigger;
 
+        //
+        // Signed-in visitors only. The rules are readable by anybody, and a site that renamed its
+        // control panel to keep it out of sight would otherwise have the new name published on
+        // every page. A guest is not shown links into the control panel, and if one is, its login
+        // screen is a harmless page to prefetch.
         if (is_string($cpTrigger) && trim($cpTrigger, '/') !== '') {
+            $first = count($out);
             $reason = Craft::t('speculatr', 'The control panel (`cpTrigger`)');
             $routed(trim($cpTrigger, '/') . '/*', $reason);
             $byParam(trim($cpTrigger, '/'), $reason);
+
+            foreach (array_slice($out, $first) as $exclusion) {
+                $exclusion->signedInOnly = true;
+            }
         }
 
         // Action requests. Prerendering one of these does not load a page — it *performs the
@@ -281,10 +299,11 @@ class Exclusions extends Component
      * Whichever exclusion covers a URL first, or null if none does.
      *
      * @param array<string, mixed> $params
+     * @param bool $guest Answer for a guest's rules, which leave out the signed-in-only exclusions.
      */
-    public function firstMatch(string $path, array $params): ?Exclusion
+    public function firstMatch(string $path, array $params, bool $guest = false): ?Exclusion
     {
-        foreach ($this->urlExclusions() as $exclusion) {
+        foreach ($this->urlExclusions($guest) as $exclusion) {
             if ($exclusion->matchesUrl($path, $params)) {
                 return $exclusion;
             }
@@ -338,7 +357,7 @@ class Exclusions extends Component
             return null;
         }
 
-        if (!is_string($url) || $url === '') {
+        if ($url === '') {
             return null;
         }
 

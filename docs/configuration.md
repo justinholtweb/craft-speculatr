@@ -75,7 +75,12 @@ Craft's own configuration is read first, so all of this is already excluded unde
 site gives them: the control panel (`cpTrigger`), action requests (`actionTrigger`, and `?action=`
 too), every account path (`loginPath`, `logoutPath`, `setPasswordPath` and the rest), preview and
 site and CSRF tokens (`tokenParam`, `siteToken`, `csrfTokenName`), and published resources
-(`resourceBaseUrl`).
+(`resourceBaseUrl`). Each is covered under every site's subfolder too, with or without a trailing
+slash.
+
+The control panel exclusion goes only into signed-in visitors' rules. The rules are readable by
+anybody, so putting it in a guest's would publish the name of a control panel you renamed to keep
+out of sight; guests are not shown links into it, and its login screen is harmless to prefetch.
 
 **Speculatr → Rules** lists every one of them with its reason. On top of that:
 

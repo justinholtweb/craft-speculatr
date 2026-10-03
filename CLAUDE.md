@@ -70,6 +70,9 @@ never happens. `node -e 'new URLPattern(pattern, base).test(url)'` — Node 24 h
   literal colon that works.
 - **List rules have no `where`,** so the exclusions do not reach `prefetchUrls` or a template's
   `prefetch()` on their own. `Rules::document()` drops any named URL an exclusion covers.
+- **The rules are public, so every exclusion in them is published.** A guest's copy naming a renamed
+  `cpTrigger` gives it away. The control panel exclusions are `signedInOnly`; `where()`,
+  `firstMatch()` and `explain()` take the audience so the guest document leaves them out.
 - **The rules-file URL is per audience, and only the guest copy at the current `v` is `public`.**
   CDNs ignore `Vary: Cookie`; without `a=` in the URL a guest's prerender rules reach signed-in
   visitors, and without checking `a`/`v` a guest can seed the shared copy of the signed-in URL.
@@ -123,9 +126,16 @@ See also `[[craft-plugin-gotchas]]` in the shared memory for family-wide traps.
 No local PHP on this Mac. Everything runs inside the plugin-testing container:
 
 ```sh
-docker exec -w /var/www/html ddev-plugin-testing-web php /var/www/craft-speculatr/tests/integration/checks.php   # 116 checks
+docker exec -w /var/www/html ddev-plugin-testing-web php /var/www/craft-speculatr/tests/integration/checks.php   # 118 checks
 docker exec ddev-plugin-testing-web bash -c 'find /var/www/craft-speculatr/src -name "*.php" -print0 | xargs -0 -n1 php -l'
+docker exec -w /var/www/craft-speculatr ddev-plugin-testing-web vendor/bin/phpstan analyse --memory-limit=1G   # level 4
+docker exec -w /var/www/craft-speculatr ddev-plugin-testing-web vendor/bin/ecs check                          # src/ only
 ```
+
+PHPStan and ECS need the plugin's *own* `vendor/` (gitignored), installed with
+`docker exec -w /var/www/craft-speculatr ddev-plugin-testing-web composer install` — inside the plugin
+folder, never the harness root. ECS skips `tests/`: the checks script lives inside one `try`, and the
+fixer would re-indent all of it.
 
 The checks touch no database and no project config: settings are changed on the in-memory model and
 put back in a `finally`.

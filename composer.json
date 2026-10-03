@@ -1,7 +1,7 @@
 {
     "name": "justinholtweb/craft-speculatr",
     "description": "Speculative loading for Craft — prefetch and prerender the page a reader is about to open, with the pages nobody should ever speculate on excluded before you have to think about it.",
-    "version": "5.0.0",
+    "version": "5.0.1",
     "type": "craft-plugin",
     "keywords": [
         "craftcms",
@@ -35,6 +35,11 @@
         "ext-json": "*",
         "craftcms/cms": "^5.3.0"
     },
+    "require-dev": {
+        "craftcms/ecs": "dev-main",
+        "craftcms/phpstan": "dev-main",
+        "phpstan/phpstan": "^1.12 || ^2.2"
+    },
     "autoload": {
         "psr-4": {
             "justinholtweb\\speculatr\\": "src/"
@@ -44,6 +49,11 @@
         "psr-4": {
             "justinholtweb\\speculatr\\tests\\": "tests/"
         }
+    },
+    "scripts": {
+        "check-cs": "ecs check --ansi",
+        "fix-cs": "ecs check --fix --ansi",
+        "phpstan": "phpstan --memory-limit=1G"
     },
     "config": {
         "allow-plugins": {

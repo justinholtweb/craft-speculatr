@@ -318,13 +318,22 @@ class Injector extends Component
      * downgraded to prefetching — so they are given different URLs. A cache keyed on the URL alone
      * (which is most CDNs: Cloudflare ignores `Vary: Cookie`) then cannot hand one audience's rules
      * to the other, and least of all the guest's prerender rules to somebody signed in.
+     *
+     * Root-relative, not absolute. The browser resolves it against the page, so it is always the
+     * origin the page came from — whereas an absolute URL built from a `@web` nobody pinned follows
+     * the request's Host header, and a cached response would carry whatever host that was.
      */
     public function documentUrl($user): string
     {
-        return UrlHelper::siteUrl('speculatr/rules.json', [
+        $url = UrlHelper::siteUrl('speculatr/rules.json', [
             'v' => $this->version(),
             'a' => $user === null ? 'guest' : 'user',
         ]);
+
+        $path = '/' . ltrim((string)parse_url($url, PHP_URL_PATH), '/');
+        $query = parse_url($url, PHP_URL_QUERY);
+
+        return $path . (is_string($query) && $query !== '' ? '?' . $query : '');
     }
 
     /**
