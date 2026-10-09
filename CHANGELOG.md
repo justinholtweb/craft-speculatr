@@ -1,7 +1,6 @@
 # Release Notes for Speculatr
 
-## Unreleased
-
+## 5.1.0 - 2026-10-09
 ### Added
 - When Toss is installed with its cookie consent kit on, prerendering waits for consent. The page
   carries prefetch rules in place of prerender rules, and an inline script adds the prerender rules

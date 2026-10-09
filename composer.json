@@ -1,7 +1,7 @@
 {
     "name": "justinholtweb/craft-speculatr",
     "description": "Speculative loading for Craft — prefetch and prerender the page a reader is about to open, with the pages nobody should ever speculate on excluded before you have to think about it.",
-    "version": "5.0.1",
+    "version": "5.1.0",
     "type": "craft-plugin",
     "keywords": [
         "craftcms",
