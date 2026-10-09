@@ -211,16 +211,26 @@ class Injector extends Component
         // A structured-field list of strings, so the URL is quoted.
         $response->getHeaders()->add('Speculation-Rules', '"' . $url . '"');
 
-        if (!$rules->hasRuntimeAdditions()) {
-            return false;
+        // The file holds the page's half of the site-wide rules. The prerender half, when it waits
+        // for consent, cannot travel in a file the browser fetches once — it goes inline with the
+        // script that adds it, alongside the template's own additions (split the same way).
+        $consent = Plugin::getInstance()->consent;
+        $markup = $consent->upgradeScript($rules->heldDocument($user));
+
+        if ($rules->hasRuntimeAdditions()) {
+            [$runtime, $runtimeHeld] = $rules->splitForConsent($rules->runtimeDocument());
+
+            $json = (string)json_encode(
+                $runtime,
+                JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG,
+            );
+
+            $markup = '<script type="speculationrules">' . $json . '</script>'
+                . $markup
+                . $consent->upgradeScript($runtimeHeld);
         }
 
-        $json = (string)json_encode(
-            $rules->runtimeDocument(),
-            JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG,
-        );
-
-        return $this->append($response, '<script type="speculationrules">' . $json . '</script>');
+        return $markup !== '' && $this->append($response, $markup);
     }
 
     /**
@@ -363,7 +373,11 @@ class Injector extends Component
     {
         $settings = Plugin::getInstance()->getSettings();
 
-        return substr(md5((string)json_encode($settings->toArray())), 0, 8);
+        // Whether prerendering waits for consent changes the file without changing a setting of
+        // ours — switching Toss's consent kit on is enough — so it is part of the fingerprint.
+        $held = Plugin::getInstance()->consent->gatesPrerender() ? 'held' : '';
+
+        return substr(md5((string)json_encode($settings->toArray()) . $held), 0, 8);
     }
 
     /**

@@ -40,6 +40,28 @@ anybody remembering.
 - `rules` — the document itself, the audience gate, and the URL explainer.
 - `injector` — eligibility, delivery, `Sec-Purpose` classification, the `Vary` and `No-Vary-Search`
   headers.
+- `consent` — whether Toss holds prerendering for consent, the document split, and the inline
+  upgrade script.
+
+### Consent: prefetch in the page, prerender added on consent (Toss, theme 3)
+
+Toss is the family's consent manager (`craft-toss/docs/consent-api.md`). When it is installed with
+its consent kit on and `deferToToss` is on, `Rules::document()` is the *safe half*: every prerender
+rule becomes a prefetch (same where, same eagerness; not duplicated where a prefetch already covers
+it), and `heldDocument()` holds the prerender rules. `tag()` and header delivery append
+`Consent::upgradeScript()`, which follows `Toss.onConsent()` / `toss:consent` and inserts a
+`<script type="speculationrules">` when **every** `prerenderConsent` category is `true` (null =
+no), and removes it on withdrawal — removal cancels the prerenders it started.
+
+- **Never read the visitor's consent on the server.** The page must be identical for every visitor
+  (full-page caches). A check scans `src/` for `consent->has(` / `$_COOKIE` and fails if found.
+- That direction is the spec-correct one: rule sets can be added and removed at any time, so the
+  safe rules go in the markup and the ones needing permission are added by permission.
+- `Injector::version()` includes whether prerenders are held, because switching Toss's kit on changes
+  the rules file without changing a Speculatr setting.
+- Check `isPluginEnabled('toss')` before naming any Toss class; phpstan ignores `justinholtweb\toss`.
+- The browser half is tested by running the real inline script in Node against a fake DOM
+  (`tests/integration/consent-upgrade.cjs`, driven from `consent.php`).
 
 ### One model, two answers
 
@@ -127,6 +149,7 @@ No local PHP on this Mac. Everything runs inside the plugin-testing container:
 
 ```sh
 docker exec -w /var/www/html ddev-plugin-testing-web php /var/www/craft-speculatr/tests/integration/checks.php   # 118 checks
+docker exec -w /var/www/html ddev-plugin-testing-web php /var/www/craft-speculatr/tests/integration/consent.php  # 23 checks, needs Toss + node
 docker exec ddev-plugin-testing-web bash -c 'find /var/www/craft-speculatr/src -name "*.php" -print0 | xargs -0 -n1 php -l'
 docker exec -w /var/www/craft-speculatr ddev-plugin-testing-web vendor/bin/phpstan analyse --memory-limit=1G   # level 4
 docker exec -w /var/www/craft-speculatr ddev-plugin-testing-web vendor/bin/ecs check                          # src/ only

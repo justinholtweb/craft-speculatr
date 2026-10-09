@@ -113,6 +113,24 @@ class Settings extends Model
      */
     public bool $downgradeForLoggedIn = true;
 
+    // ------------------------------------------------------------------ consent
+
+    /**
+     * @var bool Hold prerendering back for consent whenever Toss is installed with its cookie
+     *           consent kit on. The page carries prefetch rules only; the prerender rules are added
+     *           in the visitor's browser once Toss says they have granted every category in
+     *           `prerenderConsent`, and removed again if they withdraw. On by default, which is what
+     *           makes the pairing zero-configuration. Without Toss this does nothing.
+     */
+    public bool $deferToToss = true;
+
+    /**
+     * @var string[] The Toss consent categories a visitor must have granted before links are
+     *               prerendered for them. A prerender runs the page's analytics and advertising
+     *               tags, so both by default. Empty prerenders without asking, as without Toss.
+     */
+    public array $prerenderConsent = ['analytics', 'marketing'];
+
     // ------------------------------------------------------------------ what never to speculate
 
     /**
@@ -218,6 +236,7 @@ class Settings extends Model
             ],
             [['excludeParams', 'trackingParams'], 'validateParamNames', 'skipOnEmpty' => false],
             [['excludeExtensions'], 'validateExtensions', 'skipOnEmpty' => false],
+            [['prerenderConsent'], 'validateCategories', 'skipOnEmpty' => false],
         ];
     }
 
@@ -273,6 +292,27 @@ class Settings extends Model
 
             if (preg_match('/^[a-z0-9]{1,8}$/', $extension) === 1) {
                 $out[] = $extension;
+            }
+        }
+
+        $this->$attribute = array_values(array_unique($out));
+    }
+
+    /**
+     * Consent category names, as a list. The checkbox group posts `''` when nothing is ticked, and a
+     * name is baked into the page's script, so anything that is not a plain name is dropped.
+     * `necessary` is always granted and would hold nothing back, so it goes too.
+     */
+    public function validateCategories(string $attribute): void
+    {
+        $value = $this->$attribute;
+        $out = [];
+
+        foreach (is_array($value) ? $value : [] as $name) {
+            $name = is_string($name) ? trim($name) : '';
+
+            if ($name !== 'necessary' && preg_match('/^[A-Za-z0-9_-]{1,64}$/', $name) === 1) {
+                $out[] = $name;
             }
         }
 

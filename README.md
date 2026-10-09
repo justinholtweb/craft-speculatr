@@ -115,6 +115,26 @@ In templates, guard anything that should happen when a *person* arrives:
 value *contains* the prefetch token, so `isPrefetch` is false during a prerender, which is what you
 want.
 
+## Cookie consent (Toss)
+
+A prerender runs the next page's analytics and advertising tags before anybody has clicked, and
+before a visitor who has not answered the cookie banner has been asked anything. When
+[Toss](https://plugins.craftcms.com/toss) is installed with its cookie consent kit on, Speculatr
+holds prerendering back until the visitor has granted **analytics** and **marketing** consent:
+
+- The page carries **prefetch** rules only. A prefetch downloads HTML and runs nothing, so the
+  visitor who has not answered yet still gets most of the speed.
+- A small inline script follows `window.Toss` / the `toss:consent` event. Once every category is
+  granted it adds the **prerender** rules to the page; if the visitor withdraws, it removes them,
+  which cancels any prerender they started. Undecided counts as no.
+- Every visitor is sent the same page. Nobody's answer is read on the server, so full-page caching
+  and CDNs are unaffected.
+
+On by default (`deferToToss`), and the categories are a setting (`prerenderConsent`). Without Toss,
+nothing changes. The rule set the script adds carries the page's CSP nonce when Craft has one;
+otherwise a strict policy needs `'inline-speculation-rules'` and the script allowed — which applies
+to header delivery too, because the held rules are added inline.
+
 ## Tracking parameters
 
 On by default. Speculatr sends `No-Vary-Search` on front-end responses and mirrors it into the
@@ -202,6 +222,7 @@ return [
     'excludePaths' => ['checkout/*', 'account/*'],
     'excludeParams' => ['add-to-cart'],
     'prefetchUrls' => ['/contact'],
+    'prerenderConsent' => ['analytics', 'marketing'],
 ];
 ```
 

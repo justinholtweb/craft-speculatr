@@ -79,11 +79,52 @@ class Rules extends Component
     // ------------------------------------------------------------------ building
 
     /**
-     * The whole document, ready for `json_encode`.
+     * The document the page carries, ready for `json_encode`.
+     *
+     * When Toss is the consent manager this is the safe half: prerender rules are replaced by
+     * prefetches, and {@see heldDocument()} holds the prerenders for the browser to add once the
+     * visitor consents. The same for every visitor either way — nobody's answer is read here.
      *
      * @return array<string, array<int, array<string, mixed>>>
      */
     public function document(?User $user = null): array
+    {
+        return $this->splitForConsent($this->fullDocument($user))[0];
+    }
+
+    /**
+     * The prerender rules waiting for consent, or nothing when they are not held.
+     *
+     * @return array<string, array<int, array<string, mixed>>>
+     */
+    public function heldDocument(?User $user = null): array
+    {
+        return $this->splitForConsent($this->fullDocument($user))[1];
+    }
+
+    /**
+     * Splits a document into the page's half and the half held for consent, if anything is held.
+     *
+     * @param array<string, array<int, array<string, mixed>>> $document
+     * @return array{0: array<string, array<int, array<string, mixed>>>, 1: array<string, array<int, array<string, mixed>>>}
+     */
+    public function splitForConsent(array $document): array
+    {
+        $consent = Plugin::getInstance()->consent;
+
+        if ($document === [] || !$consent->gatesPrerender()) {
+            return [$document, []];
+        }
+
+        return $consent->split($document);
+    }
+
+    /**
+     * The whole document, before anything is held back for consent.
+     *
+     * @return array<string, array<int, array<string, mixed>>>
+     */
+    public function fullDocument(?User $user = null): array
     {
         $settings = Plugin::getInstance()->getSettings();
 
@@ -306,7 +347,7 @@ class Rules extends Component
      */
     public function tag(?User $user = null): string
     {
-        $document = $this->document($user);
+        [$document, $held] = $this->splitForConsent($this->fullDocument($user));
 
         if ($document === []) {
             return '';
@@ -317,7 +358,8 @@ class Rules extends Component
             JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG,
         );
 
-        return '<script type="speculationrules">' . $json . '</script>';
+        return '<script type="speculationrules">' . $json . '</script>'
+            . Plugin::getInstance()->consent->upgradeScript($held);
     }
 
     // ------------------------------------------------------------------ explaining
@@ -387,6 +429,19 @@ class Rules extends Component
         $verdict->prerenderEagerness = $mode === Settings::MODE_BOTH
             ? Settings::stepDown($settings->eagerness)
             : $settings->eagerness;
+
+        // Held for consent, a prerender-only page is prefetched at the same eagerness until the
+        // visitor grants the categories, and `both` keeps its prefetch half as it was.
+        $consent = Plugin::getInstance()->consent;
+
+        if ($verdict->prerender && $consent->gatesPrerender()) {
+            $verdict->prefetch = true;
+            $verdict->caveats[] = Craft::t(
+                'speculatr',
+                'Prerendered only once the visitor grants {categories} consent in Toss; prefetched until then.',
+                ['categories' => implode(' + ', $consent->categories())],
+            );
+        }
 
         $selectors = array_map(
             static fn(Exclusion $e) => (string)$e->selectorPattern(),

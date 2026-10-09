@@ -17,10 +17,14 @@ class RulesController extends Controller
     /** @var bool Answer as a signed-in user rather than a guest. */
     public bool $loggedIn = false;
 
+    /** @var bool Print the prerender rules held for consent instead of the page's rules. */
+    public bool $held = false;
+
     public function options($actionID): array
     {
         return match ($actionID) {
-            'show', 'check' => [...parent::options($actionID), 'loggedIn'],
+            'show' => [...parent::options($actionID), 'loggedIn', 'held'],
+            'check' => [...parent::options($actionID), 'loggedIn'],
             default => parent::options($actionID),
         };
     }
@@ -31,6 +35,18 @@ class RulesController extends Controller
     public function actionShow(): int
     {
         $plugin = Plugin::getInstance();
+        $held = $plugin->rules->heldDocument($this->user());
+
+        if ($this->held) {
+            if ($held === []) {
+                $this->stderr("No prerender rules are held for consent.\n", Console::FG_YELLOW);
+                return ExitCode::OK;
+            }
+
+            $this->stdout((string)json_encode($held, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) . "\n");
+            return ExitCode::OK;
+        }
+
         $json = $plugin->rules->json($this->user(), true);
 
         if ($json === '') {
@@ -39,6 +55,13 @@ class RulesController extends Controller
         }
 
         $this->stdout($json . "\n");
+
+        if ($held !== []) {
+            $this->stderr(sprintf(
+                "Prerender rules are held until the visitor grants %s consent in Toss (--held prints them).\n",
+                implode(' + ', $plugin->consent->categories()),
+            ), Console::FG_GREY);
+        }
 
         return ExitCode::OK;
     }

@@ -60,9 +60,14 @@ the conservative choice: it never runs the page.
 
 ## Does this affect GDPR or cookie consent?
 
-It does not change what you collect, but it can change *when* scripts run. If you use a consent
-manager, check that it does not fire on a prerendered page before the reader has seen the banner — the
-same Page Visibility gating that fixes analytics applies here.
+It does not change what you collect, but it can change *when* scripts run. A prerender runs the
+next page's tags before anybody has clicked.
+
+With Toss as your consent manager, Speculatr handles this itself: it prefetches instead of
+prerendering until the visitor grants analytics and marketing consent, then adds the prerender rules
+in the browser (see Configuration → Consent). With another consent manager, check that it does not
+fire on a prerendered page before the reader has seen the banner — the same Page Visibility gating
+that fixes analytics applies here.
 
 Speculatr itself has no consent implications: nothing to store, nothing to disclose.
 

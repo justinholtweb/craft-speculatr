@@ -40,6 +40,13 @@
                 {%- if deliveryUrl %} · {{ 'delivered by header from'|t('speculatr') }} <code>{{ deliveryUrl }}</code>{% endif %}
             </p>
             <pre style="overflow-x: auto; padding: 1rem; background: var(--gray-050, #f3f7fc); border-radius: 5px;"><code>{{ json }}</code></pre>
+            {% if heldJson %}
+                <h3>{{ 'Held for consent'|t('speculatr') }}</h3>
+                <p class="light">
+                    {{ 'Toss is the consent manager, so the page carries the prefetch rules above and these prerender rules are added in the visitor’s browser once they grant {categories} consent — and removed again if they withdraw it. Every visitor is sent the same page.'|t('speculatr', { categories: consentCategories|join(' + ') }) }}
+                </p>
+                <pre style="overflow-x: auto; padding: 1rem; background: var(--gray-050, #f3f7fc); border-radius: 5px;"><code>{{ heldJson }}</code></pre>
+            {% endif %}
         {% else %}
             <p class="light">
                 {{ audience == 'guest'

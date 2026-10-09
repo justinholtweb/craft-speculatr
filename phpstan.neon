@@ -7,3 +7,10 @@ parameters:
         - src
     excludePaths:
         - src/templates
+    ignoreErrors:
+        # Toss is the family's consent manager and an optional companion, never a dependency. Every
+        # reference sits in services/Consent::tossIsActive(), which asks the plugins service before
+        # naming a Toss class.
+        -
+            message: '#justinholtweb\\toss#'
+            reportUnmatched: false

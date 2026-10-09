@@ -69,6 +69,33 @@ you serve and the one most likely to have something on it that should not happen
 `downgradeForLoggedIn` is the compromise that makes signed-in speculation defensible: those visitors
 still get their next page out of the prefetch cache, without a hidden tab running their scripts.
 
+## Consent
+
+| Setting | Default | |
+| --- | --- | --- |
+| `deferToToss` | `true` | hold prerendering for consent whenever Toss is installed with its cookie consent kit on |
+| `prerenderConsent` | `['analytics', 'marketing']` | the Toss categories a visitor must have granted before links are prerendered for them |
+
+A prerender runs the next page's scripts, analytics and advertising tags included, before anybody
+has clicked. When Toss is the site's consent manager and `deferToToss` is on, the page carries
+prefetch rules in place of prerender rules — same links, same eagerness — and an inline script adds
+the prerender rules in the visitor's browser once Toss reports every category in `prerenderConsent`
+as granted. A withdrawal removes them again, which cancels any prerender they started. Undecided
+and refused both mean no.
+
+Nothing about the visitor is read on the server: every visitor is sent the same rules and the same
+script, so a page from a full-page cache or a CDN is right for whoever receives it. The rules-file
+URL in header delivery changes when Toss starts or stops holding prerenders, so a cached file is
+never stale.
+
+`necessary` is always granted and is ignored here. An empty list prerenders without asking, as it
+does without Toss. Toss not installed, or its consent kit off: these settings do nothing.
+
+Under a strict Content-Security-Policy, the script and the rule set it inserts are inline. The rule
+set carries the script's nonce when Craft provides one; otherwise allow
+`'inline-speculation-rules'`. This applies in header delivery too, because the held rules cannot
+travel in the site-wide rules file.
+
 ## What never to speculate
 
 Craft's own configuration is read first, so all of this is already excluded under whatever names your

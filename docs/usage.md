@@ -125,7 +125,8 @@ on its own cannot settle — chiefly that a selector exclusion may still apply t
 **Speculatr → Rules** answers the only question anybody really asks about this plugin, which is not
 "what are my rules" but *is it going to prerender the thing that signs people out*.
 
-- the exact JSON being sent, for signed-out visitors or for you
+- the exact JSON being sent, for signed-out visitors or for you — and, when Toss holds prerendering
+  for consent, the prerender rules added in the browser once the visitor grants it
 - every exclusion, with its source — Craft's own configuration, Speculatr's defaults, your settings —
   and the reason it exists
 - a box you can paste a URL into, which tells you what would happen and names the exclusion that
@@ -135,6 +136,7 @@ on its own cannot settle — chiefly that a selector exclusion may still apply t
 
 ```sh
 php craft speculatr/rules/show              # the rules document
+php craft speculatr/rules/show --held       # the prerender rules held for consent, when Toss holds them
 php craft speculatr/rules/exclusions        # everything excluded, and why
 php craft speculatr/rules/check /checkout   # what happens to one URL
 ```

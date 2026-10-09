@@ -36,6 +36,10 @@ class RulesController extends Controller
             'settings' => $settings,
             'audience' => $audience,
             'json' => $plugin->rules->json($user, true),
+            'heldJson' => ($held = $plugin->rules->heldDocument($user)) !== []
+                ? (string)json_encode($held, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT)
+                : '',
+            'consentCategories' => $plugin->consent->categories(),
             'appliesToGuests' => $settings->forGuests,
             'appliesToUser' => $plugin->rules->appliesTo(Craft::$app->getUser()->getIdentity()),
             'effectiveMode' => $plugin->rules->effectiveMode($user),

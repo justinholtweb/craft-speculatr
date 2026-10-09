@@ -1,5 +1,17 @@
 # Release Notes for Speculatr
 
+## Unreleased
+
+### Added
+- When Toss is installed with its cookie consent kit on, prerendering waits for consent. The page
+  carries prefetch rules in place of prerender rules, and an inline script adds the prerender rules
+  in the browser once the visitor grants analytics and marketing consent in Toss — and removes them
+  if they withdraw. Every visitor is sent the same page, so full-page caching is unaffected. New
+  settings `deferToToss` (on) and `prerenderConsent` (`analytics`, `marketing`); without Toss nothing
+  changes.
+- The Rules screen shows the prerender rules held for consent, the URL checker says a held prerender
+  is prefetched until then, and `speculatr/rules/show --held` prints them.
+
 ## 5.0.1 - 2026-10-03
 
 ### Security

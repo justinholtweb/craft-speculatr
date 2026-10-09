@@ -13,6 +13,7 @@ use craft\web\Response;
 use craft\web\twig\variables\CraftVariable;
 use craft\web\UrlManager;
 use justinholtweb\speculatr\models\Settings;
+use justinholtweb\speculatr\services\Consent;
 use justinholtweb\speculatr\services\Exclusions;
 use justinholtweb\speculatr\services\Injector;
 use justinholtweb\speculatr\services\Rules;
@@ -36,6 +37,7 @@ use yii\base\Event;
  * @property-read Rules $rules
  * @property-read Exclusions $exclusions
  * @property-read Injector $injector
+ * @property-read Consent $consent
  * @property-read Settings $settings
  *
  * @method Settings getSettings()
@@ -60,6 +62,7 @@ class Plugin extends BasePlugin
                 'rules' => Rules::class,
                 'exclusions' => Exclusions::class,
                 'injector' => Injector::class,
+                'consent' => Consent::class,
             ],
         ];
     }
@@ -106,6 +109,7 @@ class Plugin extends BasePlugin
         return Craft::$app->getView()->renderTemplate('speculatr/settings', [
             'settings' => $this->getSettings(),
             'plugin' => $this,
+            'tossActive' => $this->consent->tossIsActive(),
         ]);
     }
 

@@ -86,6 +86,38 @@
 
 <hr>
 
+<h2>{{ 'Consent'|t('speculatr') }}</h2>
+
+<p class="light">{{ 'A prerender runs the next page’s analytics and advertising tags before anybody has clicked — and before a visitor who has not answered the cookie banner has been asked. A prefetch runs nothing.'|t('speculatr') }}</p>
+
+{% if not tossActive %}
+    <p class="light">{{ 'Toss is not installed, or its cookie consent kit is off, so these settings do nothing yet and prerendering works as configured above.'|t('speculatr') }}</p>
+{% endif %}
+
+{{ forms.lightswitchField({
+    label: 'Hold prerendering for consent in Toss'|t('speculatr'),
+    instructions: 'The page carries prefetch rules only, and the prerender rules are added in the visitor’s browser once Toss says they have granted the categories below — and removed if they withdraw. Every visitor is sent the same page, so full-page caching is unaffected.'|t('speculatr'),
+    id: 'deferToToss',
+    name: 'deferToToss',
+    on: settings.deferToToss,
+}) }}
+
+{{ forms.checkboxSelectField({
+    label: 'Categories prerendering waits for'|t('speculatr'),
+    instructions: 'Every ticked category must be granted. Untick both to prerender without asking.'|t('speculatr'),
+    id: 'prerenderConsent',
+    name: 'prerenderConsent',
+    values: settings.prerenderConsent,
+    options: [
+        { value: 'analytics', label: 'Analytics'|t('speculatr') },
+        { value: 'marketing', label: 'Marketing'|t('speculatr') },
+        { value: 'preferences', label: 'Preferences'|t('speculatr') },
+    ],
+    errors: settings.getErrors('prerenderConsent'),
+}) }}
+
+<hr>
+
 <h2>{{ 'What never to speculate'|t('speculatr') }}</h2>
 
 <p class="light">{{ 'Craft’s own configuration is read first, so the control panel, action requests, every sign-in and sign-out path, and any URL carrying a preview, site or CSRF token are already excluded — under whatever names this site gives them. The Rules screen lists all of it.'|t('speculatr') }}</p>
